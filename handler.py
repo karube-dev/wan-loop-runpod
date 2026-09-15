@@ -257,6 +257,14 @@ def _download_model(rel_path: str, info: dict):
     return False
 
 
+def _comfyui_log_tail(n: int = 40) -> str:
+    try:
+        with open("/tmp/comfyui.log", "r", errors="replace") as fh:
+            return "".join(fh.readlines()[-n:])
+    except Exception as e:
+        return f"<no comfyui log: {e}>"
+
+
 def _wait_ready(timeout: int = 2400):
     global _COMFYUI_READY
     if _COMFYUI_READY:
@@ -265,16 +273,26 @@ def _wait_ready(timeout: int = 2400):
     deadline = time.time() + timeout
     import requests as _requests
 
-    logger.info("Waiting for ComfyUI server (timeout=%ds)...", timeout)
-    while time.time() < deadline:
+    # Wait for ComfyUI HTTP server (short budget: models are baked in the image)
+    server_timeout = 600
+    server_deadline = time.time() + server_timeout
+    logger.info("Waiting for ComfyUI server (timeout=%ds)...", server_timeout)
+    server_up = False
+    while time.time() < server_deadline:
         try:
             resp = _requests.get(f"http://{SERVER_ADDRESS}:8188/", timeout=5)
             if resp.status_code == 200:
                 logger.info("ComfyUI server is up.")
+                server_up = True
                 break
         except Exception:
             pass
         time.sleep(2)
+    if not server_up:
+        raise RuntimeError(
+            "ComfyUI server did not start within "
+            f"{server_timeout}s. Log tail:\n{_comfyui_log_tail()}"
+        )
 
     for rel_path, info in _REQUIRED_MODELS.items():
         full_path = os.path.join(_MODEL_DIR, rel_path)

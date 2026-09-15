@@ -68,13 +68,16 @@ wan-loop-runpod/
 
 ---
 
-## Models (downloaded lazily on first inference, ~17GB)
+## Models (baked into the image, ~17GB)
 
 | File | Source |
 |---|---|
 | `wan2.2-i2v-rapid-aio-v10-nsfw-Q4_K_S.gguf` (~9.9GB) | `DoorZekor/WAN2.2-14B-Rapid-AllInOne-GGUF-NSFW-v10` |
 | `nsfw_wan_umt5-xxl_fp8_scaled.safetensors` (~6.7GB) | `NSFW-API/NSFW-Wan-UMT5-XXL` |
-| `wan_2.1_vae.safetensors` (~254MB, pre-baked in image) | `Comfy-Org/Wan_2.2_ComfyUI_Repackaged` (`split_files/vae`) |
+| `wan_2.1_vae.safetensors` (~254MB) | `Comfy-Org/Wan_2.2_ComfyUI_Repackaged` (`split_files/vae`) |
+
+All three are downloaded at image build time. The handler's lazy-download
+remains as a fallback if a file is missing at runtime.
 
 ---
 
@@ -112,9 +115,9 @@ powershell -ExecutionPolicy Bypass -File ..\test_loop_endpoint.ps1 -EndpointId <
 
 ## Notes
 
-* **Cold start**: first job downloads ~17GB of models inside the worker
-  (10–20 min), then generates (~10–20 min on a 4090 for 81 frames).
-  Subsequent jobs on a warm worker skip the download.
+* **Cold start**: image pull (~17GB of baked models) plus 81-frame
+  generation (~10–20 min on a 4090). Subsequent jobs on a warm worker
+  generate immediately.
 * **Cost**: while `workersMin=1`, the GPU bills continuously.
   Set `workersMin=0` after testing.
 * The rapid model is a few-step distillate: keep `steps` at 8

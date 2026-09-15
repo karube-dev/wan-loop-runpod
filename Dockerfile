@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Python deps
 RUN pip install --upgrade pip \
-    && pip install -U "huggingface_hub[hf_transfer]" \
+    && pip install -U "huggingface_hub[hf_transfer,hf_xet]" \
     && pip install runpod websocket-client Pillow requests
 
 # ComfyUI
@@ -34,12 +34,18 @@ RUN mkdir -p /ComfyUI/models/diffusion_models \
              /ComfyUI/models/text_encoders \
              /ComfyUI/models/vae
 
-# Pre-bake the small public Wan VAE at build time (254MB).
-# The 14B GGUF (~9.9GB) + UMT5 (~6.7GB) download lazily on first inference
-# (see handler.py) to keep the image lean.
+# Pre-bake all models at build time (datacenter backbone is fast; this removes
+# an entire failure class from cold starts). Runtime lazy-download in
+# handler.py remains as a fallback if a file is missing.
 RUN wget -q --show-progress \
         "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors" \
-        -O /ComfyUI/models/vae/wan_2.1_vae.safetensors
+        -O /ComfyUI/models/vae/wan_2.1_vae.safetensors \
+    && wget -q --show-progress \
+        "https://huggingface.co/NSFW-API/NSFW-Wan-UMT5-XXL/resolve/main/nsfw_wan_umt5-xxl_fp8_scaled.safetensors" \
+        -O /ComfyUI/models/text_encoders/nsfw_wan_umt5-xxl_fp8_scaled.safetensors \
+    && wget -q --show-progress \
+        "https://huggingface.co/DoorZekor/WAN2.2-14B-Rapid-AllInOne-GGUF-NSFW-v10/resolve/main/wan2.2-i2v-rapid-aio-v10-nsfw-Q4_K_S.gguf" \
+        -O /ComfyUI/models/diffusion_models/wan2.2-i2v-rapid-aio-v10-nsfw-Q4_K_S.gguf
 
 # Copy worker source
 COPY . /worker
