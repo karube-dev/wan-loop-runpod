@@ -16,12 +16,12 @@ RUN pip install --upgrade pip \
     && pip install -U "huggingface_hub[hf_transfer,hf_xet]" \
     && pip install runpod websocket-client Pillow requests
 
-# ComfyUI (main tracks comfy-kitchen, which needs torch>=2.7 for custom-op
-# schema inference; the base image ships torch 2.4, so upgrade explicitly)
+# ComfyUI (main tracks comfy-kitchen, whose custom-op registration uses PEP 585
+# builtins rejected by torch <= 2.7 infer_schema; use cu128 / torch >= 2.8)
 RUN git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI \
     && cd /ComfyUI \
     && pip install -r requirements.txt \
-    && pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+    && pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 
 # Custom nodes: WanVideoWrapper (sampler/encode) + GGUF model support
 RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git /ComfyUI/custom_nodes/ComfyUI-WanVideoWrapper \
