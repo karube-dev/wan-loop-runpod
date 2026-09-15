@@ -1,0 +1,135 @@
+{
+  "3": {
+    "inputs": {
+      "model": ["37", 0],
+      "image_embeds": ["76", 0],
+      "steps": 8,
+      "cfg": 4.0,
+      "shift": 8.0,
+      "seed": 42,
+      "force_offload": true,
+      "scheduler": "unipc",
+      "riflex_freq_index": 0,
+      "text_embeds": ["69", 0]
+    },
+    "class_type": "WanVideoSampler",
+    "_meta": { "title": "WanVideo Sampler" }
+  },
+  "6": {
+    "inputs": {
+      "text": "PLACEHOLDER_POSITIVE",
+      "clip": ["38", 0]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "CLIP Text Encode (Positive)" }
+  },
+  "7": {
+    "inputs": {
+      "text": "PLACEHOLDER_NEGATIVE",
+      "clip": ["38", 0]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "CLIP Text Encode (Negative)" }
+  },
+  "8": {
+    "inputs": {
+      "vae": ["39", 0],
+      "samples": ["3", 0],
+      "enable_vae_tiling": false,
+      "tile_x": 272,
+      "tile_y": 272,
+      "tile_stride_x": 144,
+      "tile_stride_y": 128
+    },
+    "class_type": "WanVideoDecode",
+    "_meta": { "title": "WanVideo Decode" }
+  },
+  "37": {
+    "inputs": {
+      "model": "wan2.2-i2v-rapid-aio-v10-nsfw-Q4_K_S.gguf",
+      "base_precision": "bf16",
+      "quantization": "disabled",
+      "load_device": "offload_device",
+      "attention_mode": "sdpa",
+      "block_swap_args": ["128", 0]
+    },
+    "class_type": "WanVideoModelLoader",
+    "_meta": { "title": "Load WanVideo Model (GGUF)" }
+  },
+  "38": {
+    "inputs": {
+      "clip_name": "nsfw_wan_umt5-xxl_fp8_scaled.safetensors",
+      "type": "wan",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": { "title": "Load CLIP (NSFW Wan)" }
+  },
+  "39": {
+    "inputs": {
+      "model_name": "wan_2.1_vae.safetensors",
+      "precision": "bf16"
+    },
+    "class_type": "WanVideoVAELoader",
+    "_meta": { "title": "Load WanVideo VAE" }
+  },
+  "52": {
+    "inputs": {
+      "image": "PLACEHOLDER_IMAGE"
+    },
+    "class_type": "LoadImage",
+    "_meta": { "title": "Input Image" }
+  },
+  "69": {
+    "inputs": {
+      "positive": ["6", 0],
+      "negative": ["7", 0]
+    },
+    "class_type": "WanVideoTextEmbedBridge",
+    "_meta": { "title": "Text Embed Bridge" }
+  },
+  "76": {
+    "inputs": {
+      "width": 832,
+      "height": 480,
+      "num_frames": 81,
+      "noise_aug_strength": 0.02,
+      "start_latent_strength": 0.9,
+      "end_latent_strength": 0.9,
+      "force_offload": true,
+      "fun_or_fl2v_model": false,
+      "vae": ["39", 0],
+      "start_image": ["52", 0],
+      "end_image": ["52", 0]
+    },
+    "class_type": "WanVideoImageToVideoEncode",
+    "_meta": { "title": "FLF Loop Encode (start=end)" }
+  },
+  "79": {
+    "inputs": {
+      "images": ["8", 0],
+      "fps": 16
+    },
+    "class_type": "CreateVideo",
+    "_meta": { "title": "Create Video" }
+  },
+  "80": {
+    "inputs": {
+      "video": ["79", 0],
+      "filename_prefix": "video/ComfyUI",
+      "format": "auto",
+      "codec": "auto"
+    },
+    "class_type": "SaveVideo",
+    "_meta": { "title": "Save Video" }
+  },
+  "128": {
+    "inputs": {
+      "blocks_to_swap": 24,
+      "offload_img_emb": false,
+      "offload_txt_emb": false
+    },
+    "class_type": "WanVideoBlockSwap",
+    "_meta": { "title": "Block Swap (VRAM)" }
+  }
+}
