@@ -164,11 +164,9 @@ def load_workflow() -> dict:
 DEFAULT_POSITIVE = (
     "Steady cinematic shot with gentle cyclic motion that ends exactly where it "
     "began, forming a seamless infinite loop. Restrained realistic motion, "
-    "photorealistic, high quality."
-)
-DEFAULT_NEGATIVE = (
-    "blurry, low quality, distorted, deformed, extra objects, watermark, text, "
-    "overexposed, flicker, loop cut, jump cut, abrupt transition, morphing"
+    "photorealistic, high quality. "
+    "Audio: subtle ambient night soundscape, low and calm, fading to near-silence "
+    "at the loop point."
 )
 
 
@@ -176,25 +174,21 @@ def build_prompt(
     workflow: dict,
     image_path: str,
     prompt_text: str,
-    negative_text: str,
     seed: int,
     steps: int,
-    cfg: float,
     width: int,
     height: int,
-    num_frames: int,
+    length: int,
 ) -> dict:
     prompt = json.loads(json.dumps(workflow))
 
-    prompt["52"]["inputs"]["image"] = os.path.basename(image_path)
-    prompt["6"]["inputs"]["text"] = prompt_text
-    prompt["7"]["inputs"]["text"] = negative_text
-    prompt["3"]["inputs"]["seed"] = int(seed)
-    prompt["3"]["inputs"]["steps"] = int(steps)
-    prompt["3"]["inputs"]["cfg"] = float(cfg)
-    prompt["76"]["inputs"]["width"] = int(width)
-    prompt["76"]["inputs"]["height"] = int(height)
-    prompt["76"]["inputs"]["num_frames"] = int(num_frames)
+    prompt["1"]["inputs"]["image"] = os.path.basename(image_path)
+    prompt["7"]["inputs"]["prompt"] = prompt_text
+    prompt["7"]["inputs"]["width"] = int(width)
+    prompt["7"]["inputs"]["height"] = int(height)
+    prompt["7"]["inputs"]["length"] = int(length)
+    prompt["9"]["inputs"]["noise_seed"] = int(seed)
+    prompt["11"]["inputs"]["steps"] = int(steps)
 
     return prompt
 
@@ -206,21 +200,34 @@ _COMFYUI_READY = False
 _MODEL_DIR = "/ComfyUI/models"
 
 _REQUIRED_MODELS = {
-    # 14B I2V rapid GGUF (~9.9GB) - first-last-frame loop capable
-    "diffusion_models/wan2.2-i2v-rapid-aio-v10-nsfw-Q4_K_S.gguf": {
-        "repo": "DoorZekor/WAN2.2-14B-Rapid-AllInOne-GGUF-NSFW-v10",
-        "file": "wan2.2-i2v-rapid-aio-v10-nsfw-Q4_K_S.gguf",
+    # H3 FL2VA diffusion (~19.5GB, int8 pruned)
+    "diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors": {
+        "repo": "Comfy-Org/MiniMax-H3",
+        "file": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+        "subfolder": "diffusion_models",
     },
-    # UMT5 text encoder (~6.7GB)
-    "text_encoders/nsfw_wan_umt5-xxl_fp8_scaled.safetensors": {
-        "repo": "NSFW-API/NSFW-Wan-UMT5-XXL",
-        "file": "nsfw_wan_umt5-xxl_fp8_scaled.safetensors",
+    # Qwen3-VL text encoder (~14.6GB, nvfp4)
+    "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors": {
+        "repo": "Comfy-Org/MiniMax-H3",
+        "file": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+        "subfolder": "text_encoders",
     },
-    # Wan 2.1 VAE (~254MB, pre-baked in image but re-checked here)
-    "vae/wan_2.1_vae.safetensors": {
-        "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
-        "file": "wan_2.1_vae.safetensors",
-        "subfolder": "split_files/vae",
+    # H3 video VAE (~4.9GB)
+    "vae/minimax_h3_video_vae_fp16.safetensors": {
+        "repo": "Comfy-Org/MiniMax-H3",
+        "file": "minimax_h3_video_vae_fp16.safetensors",
+        "subfolder": "vae",
+    },
+    # H3 audio VAE (~0.6GB)
+    "vae/minimax_h3_audio_vae_fp32.safetensors": {
+        "repo": "Comfy-Org/MiniMax-H3",
+        "file": "minimax_h3_audio_vae_fp32.safetensors",
+        "subfolder": "vae",
+    },
+    # Turbo 8-step LoRA
+    "loras/minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors": {
+        "repo": "lightx2v/Minimax-h3-Turbo",
+        "file": "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
     },
 }
 
@@ -333,13 +340,11 @@ def handler(job: dict) -> dict:
         raise FileNotFoundError(f"Could not resolve input image at {image_path}")
 
     prompt_text = job_input.get("prompt", DEFAULT_POSITIVE)
-    negative_text = job_input.get("negative_prompt", DEFAULT_NEGATIVE)
     seed = int(job_input.get("seed", 777))
     steps = int(job_input.get("steps", 8))
-    cfg = float(job_input.get("cfg", 4.0))
-    width = int(job_input.get("width", 832))
-    height = int(job_input.get("height", 480))
-    num_frames = int(job_input.get("num_frames", 81))
+    width = int(job_input.get("width", 1344))
+    height = int(job_input.get("height", 768))
+    length = int(job_input.get("length", 124))  # frames @24fps, 17k+5 grid
 
     comfy_input_target = os.path.join(COMFYUI_INPUT_DIR, os.path.basename(image_path))
     if os.path.abspath(image_path) != os.path.abspath(comfy_input_target):
@@ -353,15 +358,13 @@ def handler(job: dict) -> dict:
         workflow,
         image_path=image_path,
         prompt_text=prompt_text,
-        negative_text=negative_text,
         seed=seed,
         steps=steps,
-        cfg=cfg,
         width=width,
         height=height,
-        num_frames=num_frames,
+        length=length,
     )
-    history = wait_for_completion(prompt)
+    history = wait_for_completion(prompt, timeout=3600)
     prompt_id = list(history.keys())[0]
     outputs = collect_outputs(history[prompt_id])
 

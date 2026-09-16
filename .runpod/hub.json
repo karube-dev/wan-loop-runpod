@@ -1,6 +1,6 @@
 {
-  "title": "Wan2.2 Seamless Loop Video",
-  "short_description": "Generate short seamless-loop videos (first-last-frame I2V) on RunPod Serverless.",
+  "title": "MiniMax H3 Seamless Loop Video",
+  "short_description": "Generate short seamless-loop videos with native audio (first-last-frame I2V) on RunPod Serverless.",
   "category": "video",
-  "description": "Image-to-video with Wan2.2 I2V rapid (14B GGUF): the start image is used as both first and last frame, so the clip loops seamlessly on player repeat. Returns the video as base64 MP4."
+  "description": "Image-to-video with MiniMax H3 FL2VA + turbo 8-step LoRA: the start image is used as both first and last frame, so the clip loops seamlessly on player repeat. Native stereo audio included. Returns the video as base64 MP4."
 }
