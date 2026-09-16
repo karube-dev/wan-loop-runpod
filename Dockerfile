@@ -31,14 +31,12 @@ RUN mkdir -p /ComfyUI/models/diffusion_models \
              /ComfyUI/models/vae \
              /ComfyUI/models/loras
 
-# Pre-bake all models at build time (~40GB). Runtime lazy-download in
-# handler.py remains as a fallback if a file is missing.
+# Pre-bake the diffusion model + VAEs + LoRA at build time (~26GB).
+# The 14.6GB text encoder downloads lazily on first inference (handler.py)
+# to keep the image within CI runner disk limits.
 RUN wget -q --show-progress \
         "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors" \
         -O /ComfyUI/models/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors \
-    && wget -q --show-progress \
-        "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors" \
-        -O /ComfyUI/models/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors \
     && wget -q --show-progress \
         "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors" \
         -O /ComfyUI/models/vae/minimax_h3_video_vae_fp16.safetensors \

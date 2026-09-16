@@ -30,7 +30,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # NOTE: no layer cache — the baked-model image (~25GB) exceeds the
+      - name: Disk space (debug for large baked-model images)
+        run: df -h / /tmp
+
+      # NOTE: no layer cache — the baked-model image exceeds the
       # runner disk / cache limits (buildx local cache caused ENOSPC).
       - name: Build and push
         uses: docker/build-push-action@v6
